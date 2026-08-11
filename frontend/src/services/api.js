@@ -1,9 +1,17 @@
 import axios from 'axios';
 
+const getBaseUrl = () => {
+  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+    return window.location.origin;
+  }
+  return 'http://localhost:8000';
+};
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000',
+  baseURL: getBaseUrl(),
   headers: { 'Content-Type': 'application/json' },
-  timeout: 5000,
+  timeout: 10000,
 });
 
 // Attach token on every request

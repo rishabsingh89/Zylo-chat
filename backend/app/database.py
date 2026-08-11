@@ -6,7 +6,13 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./zylochat.db")
+# If running on Vercel without explicit DATABASE_URL, use /tmp directory for SQLite
+default_sqlite = "/tmp/zylochat.db" if os.getenv("VERCEL") else "./zylochat.db"
+DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{default_sqlite}")
+
+# Supabase fix: convert legacy postgres:// to postgresql:// for SQLAlchemy compatibility
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 connect_args = {}
 if DATABASE_URL.startswith("sqlite"):

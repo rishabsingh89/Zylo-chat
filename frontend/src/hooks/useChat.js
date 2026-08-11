@@ -36,8 +36,18 @@ const useChat = (selectedUser) => {
   // Connect native WebSocket for FastAPI backend
   useEffect(() => {
     if (!token) return;
-    const rawUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-    const wsUrl = rawUrl.replace(/^http/, 'ws') + `/ws/chat/${encodeURIComponent(token)}`;
+    const getRawUrl = () => {
+      if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
+      if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+        return window.location.origin;
+      }
+      return 'http://localhost:8000';
+    };
+    const rawUrl = getRawUrl();
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    const wsUrl = rawUrl.startsWith('http') 
+      ? rawUrl.replace(/^http/, 'ws') + `/ws/chat/${encodeURIComponent(token)}`
+      : `${wsProtocol}://${window.location.host}/ws/chat/${encodeURIComponent(token)}`;
 
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
