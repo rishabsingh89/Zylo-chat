@@ -71,11 +71,28 @@ const AddFriendModal = ({ isOpen, onClose, onSelectUser }) => {
   }, [query]);
 
 
+  const handleSendDirectRequest = async (targetQuery) => {
+    const isEmail = targetQuery.includes('@');
+    setActionLoading((prev) => ({ ...prev, direct_invite: true }));
+    try {
+      await sendFriendRequest({
+        email: isEmail ? targetQuery : undefined,
+        username: !isEmail ? targetQuery : undefined,
+      });
+      toast.success(`Friend request sent to ${targetQuery}!`);
+      loadData();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Failed to send request');
+    } finally {
+      setActionLoading((prev) => ({ ...prev, direct_invite: false }));
+    }
+  };
+
   const handleSendRequest = async (targetUser) => {
     const id = targetUser._id || targetUser.id;
     setActionLoading((prev) => ({ ...prev, [id]: true }));
     try {
-      await sendFriendRequest({ friendId: id });
+      await sendFriendRequest({ friendId: id, username: targetUser.username, email: targetUser.email });
       toast.success(`Friend request sent to ${targetUser.username}!`);
       loadData();
     } catch (err) {
@@ -193,8 +210,16 @@ const AddFriendModal = ({ isOpen, onClose, onSelectUser }) => {
 
               <div className="modal-list">
                 {searchResults.length === 0 && !searching && query.trim() && (
-                  <div className="empty-state-card">
-                    <p>No user found with "{query}"</p>
+                  <div className="empty-state-card" style={{ padding: '20px 16px', textAlign: 'center' }}>
+                    <p style={{ marginBottom: '12px', fontSize: '0.95rem' }}>No active account found for "{query}"</p>
+                    <button
+                      className="btn-pill primary"
+                      style={{ padding: '8px 18px', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                      disabled={actionLoading['direct_invite']}
+                      onClick={() => handleSendDirectRequest(query.trim())}
+                    >
+                      {actionLoading['direct_invite'] ? 'Sending...' : `+ Send Friend Request to "${query.trim()}"`}
+                    </button>
                   </div>
                 )}
                 {searchResults.length === 0 && !query.trim() && (

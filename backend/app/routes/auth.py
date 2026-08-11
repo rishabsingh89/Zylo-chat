@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -15,20 +16,46 @@ def register_user(payload: UserRegister, db: Session = Depends(get_db)):
     trimmed_username = payload.username.strip()
 
     # Check duplicate email (case-insensitive)
-    existing_email = db.query(User).filter(User.email.ilike(trimmed_email)).first()
+    existing_email = db.query(User).filter(func.lower(User.email) == trimmed_email).first()
     if existing_email:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered. Please sign in."
-        )
+        if existing_email.password_hash == "pending_invite_account":
+            existing_email.username = trimmed_username
+            existing_email.password_hash = hash_password(payload.password)
+            existing_email.is_online = True
+            db.commit()
+            db.refresh(existing_email)
+            access_token = create_access_token(data={"sub": existing_email.id})
+            return {
+                "access_token": access_token,
+                "token_type": "bearer",
+                "user": existing_email
+            }
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already registered. Please sign in."
+            )
 
     # Check duplicate username
-    existing_user = db.query(User).filter(User.username.ilike(trimmed_username)).first()
+    existing_user = db.query(User).filter(func.lower(User.username) == trimmed_username.lower()).first()
     if existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Username already taken. Please choose another."
-        )
+        if existing_user.password_hash == "pending_invite_account":
+            existing_user.email = trimmed_email
+            existing_user.password_hash = hash_password(payload.password)
+            existing_user.is_online = True
+            db.commit()
+            db.refresh(existing_user)
+            access_token = create_access_token(data={"sub": existing_user.id})
+            return {
+                "access_token": access_token,
+                "token_type": "bearer",
+                "user": existing_user
+            }
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Username already taken. Please choose another."
+            )
 
     user = User(
         username=trimmed_username,
