@@ -12,7 +12,7 @@ import {
 } from '../services/friendService';
 
 const getInitials = (name = '') =>
-  name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2);
+  (name || '').trim().split(/\s+/).filter(Boolean).map((w) => w[0]).join('').toUpperCase().slice(0, 2) || 'U';
 
 const AddFriendModal = ({ isOpen, onClose, onSelectUser }) => {
   const [activeTab, setActiveTab] = useState('add'); // 'add', 'requests', 'friends'

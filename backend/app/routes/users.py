@@ -11,6 +11,8 @@ from app.schemas.user import UserResponse
 from app.utils.auth import get_current_user
 from app.utils.security import validate_uploaded_file
 
+from sqlalchemy import or_, func
+
 router = APIRouter(prefix="/api/users", tags=["Users"])
 
 @router.get("/search", response_model=List[UserResponse])
@@ -28,8 +30,8 @@ def search_users(
     users = db.query(User).filter(
         User.id != current_user.id,
         or_(
-            User.username.ilike(f"%{query}%"),
-            User.email.ilike(f"%{query}%")
+            func.lower(User.username).contains(query),
+            func.lower(User.email).contains(query)
         )
     ).limit(30).all()
     return users

@@ -1,12 +1,14 @@
 import { motion } from 'framer-motion';
 
 const getInitials = (name = '') =>
-  name
-    .split(' ')
+  (name || '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
     .map((w) => w[0])
     .join('')
     .toUpperCase()
-    .slice(0, 2);
+    .slice(0, 2) || 'U';
 
 const UserCard = ({ user, lastMessage, time, unread, isActive, onClick }) => {
   return (

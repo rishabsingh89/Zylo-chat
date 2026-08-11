@@ -87,6 +87,7 @@ const Sidebar = ({
     const timer = setTimeout(async () => {
       setSearching(true);
       try {
+        const results = await searchUsers(query);
         const myId = user._id || user.id;
         setSearchResults(results.filter((u) => (u._id || u.id) !== myId));
       } catch {

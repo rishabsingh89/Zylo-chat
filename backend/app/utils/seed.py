@@ -40,6 +40,16 @@ SEED_USERS = [
         "email": "john@zylo.com",
         "password": "password123",
     },
+    {
+        "username": "AliceVibly",
+        "email": "alice@zylo.com",
+        "password": "password123",
+    },
+    {
+        "username": "BobVibly",
+        "email": "bob@zylo.com",
+        "password": "password123",
+    },
 ]
 
 def seed_demo_users(db: Session):
