@@ -2,6 +2,16 @@
 node_modules/
 **/node_modules/
 
+# Security & Secrets
+security/
+**/security/
+*security*
+.env
+*.env
+.env.*
+.env.local
+.env.*.local
+
 # Python
 __pycache__/
 **/__pycache__/
@@ -12,12 +22,6 @@ __pycache__/
 backend/zylochat.db
 backend/uploads/*
 !backend/uploads/.gitkeep
-
-# Environments
-.env
-*.env
-.env.local
-.env.*.local
 
 # Build outputs
 dist/
