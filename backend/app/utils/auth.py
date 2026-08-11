@@ -53,10 +53,22 @@ def get_current_user(
             parts = decoded.split("_")
             mock_id = f"mock_{parts[1]}" if len(parts) > 1 else token
             user = db.query(User).filter(User.id == mock_id).first()
-            if user:
-                return user
-        except Exception:
-            pass
+            if not user:
+                mock_username = f"user_{parts[1][:6]}" if len(parts) > 1 else "mock_user"
+                mock_email = f"{mock_username}@zylo.com"
+                user = User(
+                    id=mock_id,
+                    username=mock_username,
+                    email=mock_email,
+                    password_hash="mock_hash",
+                    is_online=True
+                )
+                db.add(user)
+                db.commit()
+                db.refresh(user)
+            return user
+        except Exception as mock_err:
+            print(f"[Auth] Mock token handling error: {mock_err}")
 
     user_id = decode_access_token(token)
     if user_id is None:

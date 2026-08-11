@@ -148,8 +148,10 @@ async def accept_friend_request(
     db: Session = Depends(get_db)
 ):
     friendship = db.query(Friendship).filter(
-        Friendship.id == request_id,
-        Friendship.friend_id == current_user.id
+        or_(
+            and_(Friendship.id == request_id, Friendship.friend_id == current_user.id),
+            and_(Friendship.user_id == request_id, Friendship.friend_id == current_user.id)
+        )
     ).first()
 
     if not friendship:
@@ -174,8 +176,11 @@ def reject_friend_request(
     db: Session = Depends(get_db)
 ):
     friendship = db.query(Friendship).filter(
-        Friendship.id == request_id,
-        or_(Friendship.friend_id == current_user.id, Friendship.user_id == current_user.id)
+        or_(
+            Friendship.id == request_id,
+            and_(Friendship.user_id == request_id, Friendship.friend_id == current_user.id),
+            and_(Friendship.friend_id == request_id, Friendship.user_id == current_user.id)
+        )
     ).first()
 
     if not friendship:

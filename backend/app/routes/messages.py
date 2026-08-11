@@ -25,7 +25,17 @@ def get_conversations(
     sent_receivers = db.query(Message.receiver_id).filter(Message.sender_id == current_user.id, Message.receiver_id.isnot(None)).distinct().all()
     received_senders = db.query(Message.sender_id).filter(Message.receiver_id == current_user.id).distinct().all()
 
-    user_ids = list(set([r[0] for r in sent_receivers] + [s[0] for s in received_senders]))
+    # Also find accepted friends
+    from app.models.friendship import Friendship
+    friendships = db.query(Friendship).filter(
+        or_(
+            and_(Friendship.user_id == current_user.id, Friendship.status == "accepted"),
+            and_(Friendship.friend_id == current_user.id, Friendship.status == "accepted")
+        )
+    ).all()
+    friend_ids = [f.friend_id if f.user_id == current_user.id else f.user_id for f in friendships]
+
+    user_ids = list(set([r[0] for r in sent_receivers] + [s[0] for s in received_senders] + friend_ids))
     users = db.query(User).filter(User.id.in_(user_ids)).all()
 
     result = []
@@ -41,28 +51,27 @@ def get_conversations(
             .order_by(Message.created_at.desc())
             .first()
         )
-        if last_msg:
-            result.append({
-                "user": {
-                    "id": u.id,
-                    "_id": u.id,
-                    "username": u.username,
-                    "email": u.email,
-                    "avatar_url": u.avatar_url,
-                    "is_online": u.is_online,
-                    "last_seen": u.last_seen.isoformat() if u.last_seen else None
-                },
-                "lastMessage": {
-                    "id": last_msg.id,
-                    "_id": last_msg.id,
-                    "content": last_msg.content,
-                    "sender": last_msg.sender_id,
-                    "receiver": last_msg.receiver_id,
-                    "createdAt": last_msg.created_at.isoformat(),
-                    "status": last_msg.status,
-                    "media_type": last_msg.media_type
-                }
-            })
+        result.append({
+            "user": {
+                "id": u.id,
+                "_id": u.id,
+                "username": u.username,
+                "email": u.email,
+                "avatar_url": u.avatar_url,
+                "is_online": u.is_online,
+                "last_seen": u.last_seen.isoformat() if u.last_seen else None
+            },
+            "lastMessage": {
+                "id": last_msg.id,
+                "_id": last_msg.id,
+                "content": last_msg.content,
+                "sender": last_msg.sender_id,
+                "receiver": last_msg.receiver_id,
+                "createdAt": last_msg.created_at.isoformat(),
+                "status": last_msg.status,
+                "media_type": last_msg.media_type
+            } if last_msg else None
+        })
 
     return result
 
