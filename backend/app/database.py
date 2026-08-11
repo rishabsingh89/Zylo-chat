@@ -14,15 +14,19 @@ DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{default_sqlite}")
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-connect_args = {}
-if DATABASE_URL.startswith("sqlite"):
-    connect_args = {"check_same_thread": False}
+sqlite_url = f"sqlite:///{default_sqlite}"
 
-engine = create_engine(
-    DATABASE_URL,
-    connect_args=connect_args,
-    pool_pre_ping=True
-)
+try:
+    if DATABASE_URL.startswith("sqlite"):
+        engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False}, pool_pre_ping=True)
+    else:
+        engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+        # Test connection
+        with engine.connect() as conn:
+            pass
+except Exception as db_err:
+    print(f"[Database] Primary DB failed ({db_err}). Falling back to SQLite: {sqlite_url}")
+    engine = create_engine(sqlite_url, connect_args={"check_same_thread": False}, pool_pre_ping=True)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

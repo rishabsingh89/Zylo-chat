@@ -206,7 +206,9 @@ const AddFriendModal = ({ isOpen, onClose, onSelectUser }) => {
                 {searchResults.map((u) => {
                   const uId = u._id || u.id;
                   const isFriend = friends.some((f) => (f._id || f.id) === uId);
-                  const isPending = requests.outgoing?.some((r) => r.friend_id === uId);
+                  const isPending = requests.outgoing?.some(
+                    (r) => r.friend_id === uId || r.receiver_id === uId || r.receiver?.id === uId || r.receiver?._id === uId
+                  );
 
                   return (
                     <div key={uId} className="friend-card">

@@ -5,15 +5,23 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 
-from app.database import engine, Base
+from app.database import engine, Base, SessionLocal
 from app.routes import auth, users, chats, messages, friends
 from app.websocket.chat import manager
 from app.utils.auth import decode_access_token
+from app.utils.seed import seed_demo_users
 
 load_dotenv()
 
 # Create database tables automatically
 Base.metadata.create_all(bind=engine)
+
+# Seed initial demo users
+try:
+    with SessionLocal() as db_session:
+        seed_demo_users(db_session)
+except Exception as seed_err:
+    print(f"Seed error: {seed_err}")
 
 app = FastAPI(
     title=os.getenv("PROJECT_NAME", "Zylo Chat API"),

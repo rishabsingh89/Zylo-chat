@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Zylo Chat - Real-time Full-Stack Chat Application",
   "scripts": {
+    "build": "cd frontend && npm install && npm run build",
     "start": "concurrently --names \"BACKEND,FRONTEND\" --prefix-colors \"blue,magenta\" \"npm run backend\" \"npm run frontend\"",
     "dev": "concurrently --names \"BACKEND,FRONTEND\" --prefix-colors \"blue,magenta\" \"npm run backend\" \"npm run frontend\"",
     "backend": "cd backend && python -m uvicorn app.main:app --reload --port 8000",

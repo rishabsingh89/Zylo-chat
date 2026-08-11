@@ -87,8 +87,8 @@ const Sidebar = ({
     const timer = setTimeout(async () => {
       setSearching(true);
       try {
-        const results = await searchUsers(query);
-        setSearchResults(results.filter((u) => (u._id || u.id) !== user._id));
+        const myId = user._id || user.id;
+        setSearchResults(results.filter((u) => (u._id || u.id) !== myId));
       } catch {
         setSearchResults([]);
       } finally {
@@ -96,7 +96,7 @@ const Sidebar = ({
       }
     }, 350);
     return () => clearTimeout(timer);
-  }, [query, user._id]);
+  }, [query, user]);
 
   const handleSelect = useCallback((u) => {
     onSelectUser(u);

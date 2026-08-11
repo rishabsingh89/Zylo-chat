@@ -13,6 +13,20 @@ const MOCK_USERS_KEY = 'zylo_mock_users';
 
 const DEFAULT_MOCK_USERS = [
   {
+    _id: 'mock_seed_thomas_1',
+    username: 'thomas',
+    email: 'thomas@zylo.com',
+    password: 'password123',
+    createdAt: new Date().toISOString(),
+  },
+  {
+    _id: 'mock_seed_thomas_2',
+    username: 'thomas_wright',
+    email: 'thomas.wright@zylo.com',
+    password: 'password123',
+    createdAt: new Date().toISOString(),
+  },
+  {
     _id: 'mock_seed_1',
     username: 'alex_rivera',
     email: 'alex@zylo.com',
@@ -26,17 +40,40 @@ const DEFAULT_MOCK_USERS = [
     password: 'password123',
     createdAt: new Date().toISOString(),
   },
+  {
+    _id: 'mock_seed_3',
+    username: 'emma_watson',
+    email: 'emma@zylo.com',
+    password: 'password123',
+    createdAt: new Date().toISOString(),
+  },
+  {
+    _id: 'mock_seed_4',
+    username: 'david_miller',
+    email: 'david@zylo.com',
+    password: 'password123',
+    createdAt: new Date().toISOString(),
+  },
 ];
 
 const getMockUsers = () => {
   try {
     const raw = localStorage.getItem(MOCK_USERS_KEY);
-    if (!raw) {
-      localStorage.setItem(MOCK_USERS_KEY, JSON.stringify(DEFAULT_MOCK_USERS));
-      return DEFAULT_MOCK_USERS;
+    let users = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(users) || users.length === 0) {
+      users = DEFAULT_MOCK_USERS;
+    } else {
+      // Merge missing default seed users if not present
+      const existingIds = new Set(users.map((u) => u._id || u.id));
+      const existingUsernames = new Set(users.map((u) => u.username?.toLowerCase()));
+      for (const defaultUser of DEFAULT_MOCK_USERS) {
+        if (!existingIds.has(defaultUser._id) && !existingUsernames.has(defaultUser.username.toLowerCase())) {
+          users.push(defaultUser);
+        }
+      }
     }
-    const users = JSON.parse(raw);
-    return Array.isArray(users) && users.length > 0 ? users : DEFAULT_MOCK_USERS;
+    localStorage.setItem(MOCK_USERS_KEY, JSON.stringify(users));
+    return users;
   } catch {
     return DEFAULT_MOCK_USERS;
   }
