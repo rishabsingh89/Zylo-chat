@@ -62,16 +62,20 @@ const RegisterPage = () => {
       toast.success(`Account created! Welcome, ${data.user.name || data.user.username} 🎉`);
       navigate('/chat');
     } catch (err) {
-      let msg = 'Registration failed. Please try again.';
+      let msg = '';
       const detail = err.response?.data?.detail;
       if (typeof detail === 'string') {
         msg = detail;
       } else if (Array.isArray(detail) && detail.length > 0) {
         msg = detail.map((d) => (typeof d === 'string' ? d : d.msg || d.message || JSON.stringify(d))).join('; ');
+      } else if (typeof err.response?.data === 'string' && err.response.data.trim()) {
+        msg = err.response.data.length < 150 ? err.response.data : `Server error (${err.response.status})`;
       } else if (err.response?.data?.message) {
         msg = err.response.data.message;
-      } else if (err.message && !err.response) {
-        msg = 'Unable to connect to server. Please check your network connection.';
+      } else if (err.message) {
+        msg = err.message.includes('Network Error') ? 'Unable to connect to server (http://127.0.0.1:8000). Please ensure backend is running.' : err.message;
+      } else {
+        msg = 'Registration failed. Please try again.';
       }
 
       toast.error(msg);
@@ -276,7 +280,14 @@ const RegisterPage = () => {
                   </motion.div>
                 )}
               </AnimatePresence>
-            </div>
+              <AnimatePresence>
+                {errors.general && (
+                  <motion.div className="nm-error" style={{ marginBottom: 12, textAlign: 'center' }}
+                    initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
+                    {errors.general}
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
             <button id="register-submit" className="nm-btn" type="submit" disabled={loading}>
               {loading ? <><div className="spinner" /> Creating account...</> : 'Create Account'}
