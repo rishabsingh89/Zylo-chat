@@ -24,25 +24,25 @@ async def send_friend_request(
     if payload.friend_id and payload.friend_id.strip():
         target_user = db.query(User).filter(User.id == payload.friend_id.strip()).first()
     if not target_user and payload.username and payload.username.strip():
-        target_user = db.query(User).filter(func.lower(User.username) == payload.username.strip().lower()).first()
+        target_user = db.query(User).filter(User.username.ilike(payload.username.strip())).first()
     if not target_user and payload.email and payload.email.strip():
-        target_user = db.query(User).filter(func.lower(User.email) == payload.email.strip().lower()).first()
+        target_user = db.query(User).filter(User.email.ilike(payload.email.strip())).first()
 
     if not target_user:
         raw_target = (payload.email or payload.username or payload.friend_id or "").strip()
         if raw_target:
-            is_email = "@" in raw_target
-            email_val = raw_target.lower() if is_email else f"{raw_target.lower()}@zylo.com"
-            username_val = raw_target.split("@")[0] if is_email else raw_target
-
             target_user = db.query(User).filter(
                 or_(
-                    func.lower(User.email) == email_val,
-                    func.lower(User.username) == username_val.lower()
+                    User.username.ilike(raw_target),
+                    User.email.ilike(raw_target)
                 )
             ).first()
 
             if not target_user:
+                is_email = "@" in raw_target
+                email_val = raw_target.lower() if is_email else f"{raw_target.lower()}@invite.zylo.com"
+                username_val = raw_target.split("@")[0] if is_email else raw_target
+
                 target_user = User(
                     id=str(uuid.uuid4()),
                     username=username_val,
@@ -56,6 +56,7 @@ async def send_friend_request(
 
     if not target_user:
         raise HTTPException(status_code=404, detail="User not found")
+
 
     if target_user.id == current_user.id:
         raise HTTPException(status_code=400, detail="You cannot add yourself as a friend")
