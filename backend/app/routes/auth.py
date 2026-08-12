@@ -55,7 +55,11 @@ def register_user(payload: UserRegister, db: Session = Depends(get_db)):
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username or Email already registered")
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Registration failed due to a server error. Please try again.")
+        print(f"[ERROR] Registration exception: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Registration error: {str(e)}"
+        )
 
     access_token = create_access_token(data={"sub": user.id})
     return {
