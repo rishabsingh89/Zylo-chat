@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 
 from app.database import get_db
 from app.models.user import User
@@ -32,16 +33,29 @@ def register_user(payload: UserRegister, db: Session = Depends(get_db)):
             detail="Username already taken"
         )
 
-    user = User(
-        name=trimmed_name,
-        username=trimmed_username,
-        email=trimmed_email,
-        password_hash=hash_password(payload.password),
-        is_online=True
-    )
-    db.add(user)
-    db.commit()
-    db.refresh(user)
+    try:
+        user = User(
+            name=trimmed_name,
+            username=trimmed_username,
+            email=trimmed_email,
+            password_hash=hash_password(payload.password),
+            is_online=True
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+    except IntegrityError as ie:
+        db.rollback()
+        err_str = str(ie).lower()
+        if "email" in err_str:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
+        elif "username" in err_str:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username already taken")
+        else:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username or Email already registered")
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Registration failed due to a server error. Please try again.")
 
     access_token = create_access_token(data={"sub": user.id})
     return {

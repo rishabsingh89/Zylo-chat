@@ -2,11 +2,20 @@ import axios from 'axios';
 
 const getBaseUrl = () => {
   if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
-  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+  if (typeof window !== 'undefined') {
+    const { hostname, port } = window.location;
+    // When running under Vite dev server, use empty baseURL so requests are proxied via vite.config.js
+    if (port === '5173' || port === '3000') {
+      return '';
+    }
+    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname.startsWith('192.168.') || hostname.startsWith('10.') || hostname.startsWith('172.')) {
+      return `${window.location.protocol}//${hostname}:8000`;
+    }
     return window.location.origin;
   }
   return 'http://localhost:8000';
 };
+
 
 const api = axios.create({
   baseURL: getBaseUrl(),

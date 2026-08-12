@@ -50,18 +50,38 @@ const RegisterPage = () => {
     const errs = validate();
     if (Object.keys(errs).length) return setErrors(errs);
     setLoading(true);
+    setErrors({});
     try {
-      const data = await registerUser({ name: form.name, username: form.username, email: form.email, password: form.password });
+      const data = await registerUser({
+        name: form.name.trim(),
+        username: form.username.trim(),
+        email: form.email.trim(),
+        password: form.password,
+      });
       login(data.user, data.token);
       toast.success(`Account created! Welcome, ${data.user.name || data.user.username} 🎉`);
       navigate('/chat');
     } catch (err) {
-      const msg = err.response?.data?.detail || err.response?.data?.message || 'Registration failed. Try again.';
+      let msg = 'Registration failed. Please try again.';
+      const detail = err.response?.data?.detail;
+      if (typeof detail === 'string') {
+        msg = detail;
+      } else if (Array.isArray(detail) && detail.length > 0) {
+        msg = detail.map((d) => (typeof d === 'string' ? d : d.msg || d.message || JSON.stringify(d))).join('; ');
+      } else if (err.response?.data?.message) {
+        msg = err.response.data.message;
+      } else if (err.message && !err.response) {
+        msg = 'Unable to connect to server. Please check your network connection.';
+      }
+
       toast.error(msg);
-      if (msg.toLowerCase().includes('email')) {
+      const lowerMsg = msg.toLowerCase();
+      if (lowerMsg.includes('email')) {
         setErrors((p) => ({ ...p, email: msg }));
-      } else if (msg.toLowerCase().includes('username')) {
+      } else if (lowerMsg.includes('username')) {
         setErrors((p) => ({ ...p, username: msg }));
+      } else {
+        setErrors((p) => ({ ...p, general: msg }));
       }
     } finally {
       setLoading(false);

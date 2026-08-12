@@ -6,7 +6,7 @@
     "build": "cd frontend && npm install && npm run build",
     "start": "concurrently --names \"BACKEND,FRONTEND\" --prefix-colors \"blue,magenta\" \"npm run backend\" \"npm run frontend\"",
     "dev": "concurrently --names \"BACKEND,FRONTEND\" --prefix-colors \"blue,magenta\" \"npm run backend\" \"npm run frontend\"",
-    "backend": "cd backend && python -m uvicorn app.main:app --reload --port 8000",
+    "backend": "cd backend && python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000",
     "frontend": "cd frontend && npm run dev"
   },
   "devDependencies": {

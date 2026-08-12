@@ -87,13 +87,24 @@ const LoginPage = () => {
     const errs = validate();
     if (Object.keys(errs).length) return setErrors(errs);
     setLoading(true);
+    setErrors({});
     try {
-      const data = await loginUser(form);
+      const data = await loginUser({ email: form.email.trim(), password: form.password });
       login(data.user, data.token);
       toast.success(`Welcome back, ${data.user.username}! 👋`);
       navigate('/chat');
     } catch (err) {
-      const msg = err.response?.data?.message || 'Invalid email or password';
+      let msg = 'Invalid email or password';
+      const detail = err.response?.data?.detail;
+      if (typeof detail === 'string') {
+        msg = detail;
+      } else if (Array.isArray(detail) && detail.length > 0) {
+        msg = detail.map((d) => (typeof d === 'string' ? d : d.msg || d.message || JSON.stringify(d))).join('; ');
+      } else if (err.response?.data?.message) {
+        msg = err.response.data.message;
+      } else if (err.message && !err.response) {
+        msg = 'Unable to connect to server. Please check your network connection.';
+      }
       toast.error(msg);
       setErrors({ email: msg });
     } finally {
