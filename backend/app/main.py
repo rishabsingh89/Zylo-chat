@@ -41,9 +41,12 @@ app.add_middleware(
 
 
 # Ensure uploads directory exists and mount static route
-uploads_dir = os.path.join(os.getcwd(), "uploads")
-os.makedirs(uploads_dir, exist_ok=True)
-app.mount("/uploads", StaticFiles(directory=uploads_dir), name="uploads")
+try:
+    uploads_dir = os.path.join(os.getcwd(), "uploads")
+    os.makedirs(uploads_dir, exist_ok=True)
+    app.mount("/uploads", StaticFiles(directory=uploads_dir), name="uploads")
+except OSError:
+    print("Running in read-only environment (e.g., Vercel), skipping uploads directory creation.")
 
 # Include Routers
 app.include_router(auth.router)
