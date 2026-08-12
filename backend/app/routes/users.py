@@ -23,12 +23,7 @@ def search_users(
 ):
     query = q.strip()
     if not query:
-        # Return recent registered users except self
-        users = db.query(User).filter(
-            User.id != current_user.id,
-            User.password_hash != "pending_invite_account"
-        ).limit(20).all()
-        return users
+        return []
 
     search_filter = or_(
         User.username.ilike(f"%{query}%"),
@@ -36,9 +31,11 @@ def search_users(
     )
     users = db.query(User).filter(
         User.id != current_user.id,
+        User.password_hash != "pending_invite_account",
         search_filter
     ).limit(30).all()
     return users
+
 
 
 @router.get("/{user_id}", response_model=UserResponse)
