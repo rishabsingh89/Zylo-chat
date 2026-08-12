@@ -21,21 +21,20 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Handle 401 globally — skip for mock tokens
+// Handle 401 globally
 api.interceptors.response.use(
   (res) => res,
   (err) => {
     if (err.response?.status === 401) {
-      const token = localStorage.getItem('zylo_token') || '';
-      // Only redirect on real 401s (not mock tokens)
-      if (!token.startsWith('bW9ja18')) {   // base64 of "mock_"
-        localStorage.removeItem('zylo_token');
-        localStorage.removeItem('zylo_user');
+      localStorage.removeItem('zylo_token');
+      localStorage.removeItem('zylo_user');
+      if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
         window.location.href = '/login';
       }
     }
     return Promise.reject(err);
   }
 );
+
 
 export default api;
