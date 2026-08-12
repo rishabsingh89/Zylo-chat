@@ -15,6 +15,10 @@ from sqlalchemy import or_, func
 
 router = APIRouter(prefix="/api/users", tags=["Users"])
 
+@router.get("/me", response_model=UserResponse)
+def get_current_user_profile(current_user: User = Depends(get_current_user)):
+    return current_user
+
 @router.get("/search", response_model=List[UserResponse])
 def search_users(
     q: str = "",
@@ -27,7 +31,8 @@ def search_users(
 
     search_filter = or_(
         User.username.ilike(f"%{query}%"),
-        User.email.ilike(f"%{query}%")
+        User.email.ilike(f"%{query}%"),
+        User.name.ilike(f"%{query}%")
     )
     users = db.query(User).filter(
         User.id != current_user.id,
@@ -35,6 +40,7 @@ def search_users(
         search_filter
     ).limit(30).all()
     return users
+
 
 
 

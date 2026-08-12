@@ -215,11 +215,11 @@ const AddFriendModal = ({ isOpen, onClose, onSelectUser }) => {
                   return (
                     <div key={uId} className="friend-card">
                       <div className="friend-card-avatar">
-                        {getInitials(u.username)}
+                        {getInitials(u.name || u.username)}
                       </div>
                       <div className="friend-card-info">
-                        <div className="friend-card-name">{u.username}</div>
-                        <div className="friend-card-email">{u.email}</div>
+                        <div className="friend-card-name">{u.name || u.username}</div>
+                        <div className="friend-card-email">@{u.username} • {u.email}</div>
                       </div>
                       <div className="friend-card-actions">
                         {isFriend ? (

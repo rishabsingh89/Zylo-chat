@@ -15,14 +15,16 @@ from app.websocket.chat import manager
 router = APIRouter(prefix="/api/friends", tags=["Friends & Contacts"])
 
 @router.post("/request")
+@router.post("/requests")
 async def send_friend_request(
     payload: FriendRequestCreate,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     target_user = None
-    if payload.friend_id and payload.friend_id.strip():
-        target_user = db.query(User).filter(User.id == payload.friend_id.strip()).first()
+    target_id = payload.friend_id or getattr(payload, 'receiver_id', None)
+    if target_id and target_id.strip():
+        target_user = db.query(User).filter(User.id == target_id.strip()).first()
     if not target_user and payload.username and payload.username.strip():
         target_user = db.query(User).filter(
             User.username.ilike(payload.username.strip()),
@@ -35,13 +37,14 @@ async def send_friend_request(
         ).first()
 
     if not target_user:
-        raw_target = (payload.email or payload.username or payload.friend_id or "").strip()
+        raw_target = (payload.email or payload.username or target_id or "").strip()
         if raw_target:
             target_user = db.query(User).filter(
                 User.password_hash != "pending_invite_account",
                 or_(
                     User.username.ilike(raw_target),
-                    User.email.ilike(raw_target)
+                    User.email.ilike(raw_target),
+                    User.name.ilike(raw_target)
                 )
             ).first()
 
@@ -51,10 +54,8 @@ async def send_friend_request(
             detail="No registered user found with this username or email. Please ask them to sign up first."
         )
 
-
-
     if target_user.id == current_user.id:
-        raise HTTPException(status_code=400, detail="You cannot add yourself as a friend")
+        raise HTTPException(status_code=400, detail="You cannot add yourself")
 
     # Check if blocked
     is_blocked = db.query(Block).filter(

@@ -5,8 +5,10 @@ from app.schemas.user import UserResponse
 
 class FriendRequestCreate(BaseModel):
     friend_id: Optional[str] = None
+    receiver_id: Optional[str] = None
     username: Optional[str] = None
     email: Optional[str] = None
+
 
 class FriendRequestResponse(BaseModel):
     id: str

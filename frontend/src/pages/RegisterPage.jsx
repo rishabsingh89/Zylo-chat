@@ -21,7 +21,7 @@ const EyeClosed = () => (
 const RegisterPage = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
-  const [form, setForm] = useState({ username: '', email: '', password: '', confirm: '' });
+  const [form, setForm] = useState({ name: '', username: '', email: '', password: '', confirm: '' });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [showPass, setShowPass] = useState(false);
@@ -29,6 +29,7 @@ const RegisterPage = () => {
 
   const validate = () => {
     const e = {};
+    if (!form.name.trim()) e.name = 'Full name is required';
     if (!form.username.trim()) e.username = 'Username is required';
     else if (form.username.length < 3) e.username = 'At least 3 characters';
     if (!form.email.trim()) e.email = 'Email is required';
@@ -50,12 +51,12 @@ const RegisterPage = () => {
     if (Object.keys(errs).length) return setErrors(errs);
     setLoading(true);
     try {
-      const data = await registerUser({ username: form.username, email: form.email, password: form.password });
+      const data = await registerUser({ name: form.name, username: form.username, email: form.email, password: form.password });
       login(data.user, data.token);
-      toast.success(`Account created! Welcome, ${data.user.username} 🎉`);
+      toast.success(`Account created! Welcome, ${data.user.name || data.user.username} 🎉`);
       navigate('/chat');
     } catch (err) {
-      const msg = err.response?.data?.message || 'Registration failed. Try again.';
+      const msg = err.response?.data?.detail || err.response?.data?.message || 'Registration failed. Try again.';
       toast.error(msg);
       if (msg.toLowerCase().includes('email')) {
         setErrors((p) => ({ ...p, email: msg }));
@@ -66,6 +67,7 @@ const RegisterPage = () => {
       setLoading(false);
     }
   };
+
 
   return (
     <div className="nm-layout">
@@ -117,6 +119,30 @@ const RegisterPage = () => {
 
           <form onSubmit={handleSubmit} noValidate id="register-form">
 
+            {/* Full Name */}
+            <div className="nm-field">
+              <label className="nm-label" htmlFor="reg-name">Full Name</label>
+              <input
+                id="reg-name"
+                className="nm-input"
+                type="text"
+                name="name"
+                placeholder="Thomas Ramesh"
+                value={form.name}
+                onChange={handleChange}
+                autoComplete="name"
+                autoFocus
+              />
+              <AnimatePresence>
+                {errors.name && (
+                  <motion.div className="nm-error"
+                    initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
+                    {errors.name}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
             {/* Username */}
             <div className="nm-field">
               <label className="nm-label" htmlFor="reg-username">Username</label>
@@ -125,7 +151,7 @@ const RegisterPage = () => {
                 className="nm-input"
                 type="text"
                 name="username"
-                placeholder="john_doe"
+                placeholder="thomas123"
                 value={form.username}
                 onChange={handleChange}
                 autoComplete="username"
@@ -139,6 +165,7 @@ const RegisterPage = () => {
                 )}
               </AnimatePresence>
             </div>
+
 
             {/* Email */}
             <div className="nm-field">
