@@ -11,6 +11,9 @@ default_sqlite_path = os.path.join(BASE_DIR, "zylochat.db")
 
 DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
 
+# FORCE override for Vercel deployment to prevent IPv6 crash and read-only fallback crash
+DATABASE_URL = "postgresql://postgres.rnrggviwgoikwtdymkjd:Rishab%40%23123@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres?sslmode=require"
+
 # If DATABASE_URL is not set or is a relative sqlite path, use absolute path
 if not DATABASE_URL or DATABASE_URL.startswith("sqlite:///./"):
     DATABASE_URL = f"sqlite:///{default_sqlite_path}"
