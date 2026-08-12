@@ -8,15 +8,20 @@ load_dotenv()
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 default_sqlite_path = os.path.join(BASE_DIR, "zylochat.db")
-default_sqlite = "/tmp/zylochat.db" if os.getenv("VERCEL") else default_sqlite_path
 
-DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{default_sqlite_path}")
+DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
+
+# If DATABASE_URL is not set or is a relative sqlite path, use absolute path
+if not DATABASE_URL or DATABASE_URL.startswith("sqlite:///./"):
+    DATABASE_URL = f"sqlite:///{default_sqlite_path}"
 
 # Supabase fix: convert legacy postgres:// to postgresql:// for SQLAlchemy compatibility
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 sqlite_url = f"sqlite:///{default_sqlite_path}"
+
+print(f"[Database] Using: {DATABASE_URL}")
 
 try:
     if DATABASE_URL.startswith("sqlite"):
