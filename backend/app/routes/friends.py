@@ -24,38 +24,33 @@ async def send_friend_request(
     if payload.friend_id and payload.friend_id.strip():
         target_user = db.query(User).filter(User.id == payload.friend_id.strip()).first()
     if not target_user and payload.username and payload.username.strip():
-        target_user = db.query(User).filter(User.username.ilike(payload.username.strip())).first()
+        target_user = db.query(User).filter(
+            User.username.ilike(payload.username.strip()),
+            User.password_hash != "pending_invite_account"
+        ).first()
     if not target_user and payload.email and payload.email.strip():
-        target_user = db.query(User).filter(User.email.ilike(payload.email.strip())).first()
+        target_user = db.query(User).filter(
+            User.email.ilike(payload.email.strip()),
+            User.password_hash != "pending_invite_account"
+        ).first()
 
     if not target_user:
         raw_target = (payload.email or payload.username or payload.friend_id or "").strip()
         if raw_target:
             target_user = db.query(User).filter(
+                User.password_hash != "pending_invite_account",
                 or_(
                     User.username.ilike(raw_target),
                     User.email.ilike(raw_target)
                 )
             ).first()
 
-            if not target_user:
-                is_email = "@" in raw_target
-                email_val = raw_target.lower() if is_email else f"{raw_target.lower()}@invite.zylo.com"
-                username_val = raw_target.split("@")[0] if is_email else raw_target
-
-                target_user = User(
-                    id=str(uuid.uuid4()),
-                    username=username_val,
-                    email=email_val,
-                    password_hash="pending_invite_account",
-                    is_online=False
-                )
-                db.add(target_user)
-                db.commit()
-                db.refresh(target_user)
-
     if not target_user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(
+            status_code=404,
+            detail="No registered user found with this username or email. Please ask them to sign up first."
+        )
+
 
 
     if target_user.id == current_user.id:

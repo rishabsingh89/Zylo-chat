@@ -68,22 +68,7 @@ const AddFriendModal = ({ isOpen, onClose, onSelectUser }) => {
 
 
 
-  const handleSendDirectRequest = async (targetQuery) => {
-    const isEmail = targetQuery.includes('@');
-    setActionLoading((prev) => ({ ...prev, direct_invite: true }));
-    try {
-      await sendFriendRequest({
-        email: isEmail ? targetQuery : undefined,
-        username: !isEmail ? targetQuery : undefined,
-      });
-      toast.success(`Friend request sent to ${targetQuery}!`);
-      loadData();
-    } catch (err) {
-      toast.error(err.response?.data?.detail || 'Failed to send request');
-    } finally {
-      setActionLoading((prev) => ({ ...prev, direct_invite: false }));
-    }
-  };
+
 
   const handleSendRequest = async (targetUser) => {
     const id = targetUser._id || targetUser.id;
@@ -207,16 +192,9 @@ const AddFriendModal = ({ isOpen, onClose, onSelectUser }) => {
 
               <div className="modal-list">
                 {searchResults.length === 0 && !searching && query.trim() && (
-                  <div className="empty-state-card" style={{ padding: '20px 16px', textAlign: 'center' }}>
-                    <p style={{ marginBottom: '12px', fontSize: '0.95rem' }}>No active account found for "{query}"</p>
-                    <button
-                      className="btn-pill primary"
-                      style={{ padding: '8px 18px', display: 'inline-flex', alignItems: 'center', gap: 6 }}
-                      disabled={actionLoading['direct_invite']}
-                      onClick={() => handleSendDirectRequest(query.trim())}
-                    >
-                      {actionLoading['direct_invite'] ? 'Sending...' : `+ Send Friend Request to "${query.trim()}"`}
-                    </button>
+                  <div className="empty-state-card" style={{ padding: '24px 16px', textAlign: 'center' }}>
+                    <p style={{ marginBottom: '6px', fontSize: '0.95rem', fontWeight: 600 }}>No registered account found for "{query}"</p>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>Please ask your friend to sign up on Zylo Chat with this username or email.</p>
                   </div>
                 )}
                 {searchResults.length === 0 && !query.trim() && (
