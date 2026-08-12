@@ -75,7 +75,7 @@ const RegisterPage = () => {
       } else if (err.message) {
         msg = err.message.includes('Network Error') ? 'Unable to connect to server (http://127.0.0.1:8000). Please ensure backend is running.' : err.message;
       } else {
-        msg = 'Registration failed. Please try again.';
+        msg = 'Registration error. Please perform a hard refresh (Ctrl + F5) and try again.';
       }
 
       toast.error(msg);
