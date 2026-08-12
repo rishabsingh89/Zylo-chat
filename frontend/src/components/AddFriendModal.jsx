@@ -33,12 +33,16 @@ const AddFriendModal = ({ isOpen, onClose, onSelectUser }) => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [reqData, friendData] = await Promise.all([
+      const [reqData, friendData, allRegistered] = await Promise.all([
         getFriendRequests().catch(() => ({ incoming: [], outgoing: [] })),
         getFriendsList().catch(() => []),
+        searchUsers('').catch(() => []),
       ]);
       setRequests(reqData);
       setFriends(friendData);
+      if (!query.trim()) {
+        setSearchResults(allRegistered);
+      }
     } catch {
       // Ignored
     } finally {
@@ -49,7 +53,7 @@ const AddFriendModal = ({ isOpen, onClose, onSelectUser }) => {
   // Search users debounce
   useEffect(() => {
     if (!query.trim()) {
-      setSearchResults([]);
+      searchUsers('').then(setSearchResults).catch(() => setSearchResults([]));
       return;
     }
     const timer = setTimeout(async () => {
@@ -65,6 +69,7 @@ const AddFriendModal = ({ isOpen, onClose, onSelectUser }) => {
     }, 300);
     return () => clearTimeout(timer);
   }, [query]);
+
 
 
 
