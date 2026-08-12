@@ -1,5 +1,5 @@
 import os
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from dotenv import load_dotenv
@@ -20,7 +20,7 @@ sqlite_url = f"sqlite:///{default_sqlite_path}"
 
 try:
     if DATABASE_URL.startswith("sqlite"):
-        engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False}, pool_pre_ping=True)
+        engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False, "timeout": 15}, pool_pre_ping=True)
     else:
         engine = create_engine(DATABASE_URL, pool_pre_ping=True)
         # Test connection
@@ -28,7 +28,18 @@ try:
             pass
 except Exception as db_err:
     print(f"[Database] Primary DB failed ({db_err}). Falling back to SQLite: {sqlite_url}")
-    engine = create_engine(sqlite_url, connect_args={"check_same_thread": False}, pool_pre_ping=True)
+    engine = create_engine(sqlite_url, connect_args={"check_same_thread": False, "timeout": 15}, pool_pre_ping=True)
+
+@event.listens_for(engine, "connect")
+def set_sqlite_pragma(dbapi_connection, connection_record):
+    if str(engine.url).startswith("sqlite"):
+        try:
+            cursor = dbapi_connection.cursor()
+            cursor.execute("PRAGMA journal_mode=WAL")
+            cursor.execute("PRAGMA busy_timeout=10000")
+            cursor.close()
+        except Exception:
+            pass
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
