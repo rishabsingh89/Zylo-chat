@@ -288,6 +288,7 @@ const RegisterPage = () => {
                   </motion.div>
                 )}
               </AnimatePresence>
+            </div>
 
             <button id="register-submit" className="nm-btn" type="submit" disabled={loading}>
               {loading ? <><div className="spinner" /> Creating account...</> : 'Create Account'}
