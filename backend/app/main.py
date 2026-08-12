@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 
-from app.database import engine, Base, SessionLocal
+from app.database import engine, Base, SessionLocal, run_sqlite_migrations
 from app.routes import auth, users, chats, messages, friends
 from app.websocket.chat import manager
 from app.utils.auth import decode_access_token
@@ -13,8 +13,9 @@ from app.utils.seed import seed_demo_users
 
 load_dotenv()
 
-# Create database tables automatically
+# Create database tables automatically & run SQLite migrations if needed
 Base.metadata.create_all(bind=engine)
+run_sqlite_migrations()
 
 # Seed initial demo users
 try:
