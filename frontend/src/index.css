@@ -2343,4 +2343,86 @@ input, textarea {
   text-decoration: underline;
 }
 
+/* WhatsApp Context Menu & Reactions */
+.wa-context-menu {
+  position: absolute;
+  top: 40px;
+  z-index: 1000;
+  background: #233138;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  padding: 6px 0;
+  min-width: 180px;
+  color: #e9edef;
+}
+
+.wa-context-menu.sent-menu {
+  right: 0;
+}
+
+.wa-context-menu.received-menu {
+  left: 0;
+}
+
+.wa-reactions-bar {
+  display: flex;
+  justify-content: space-around;
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  font-size: 1.3rem;
+  background: #1f2c34;
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+}
+
+.wa-reaction-btn {
+  cursor: pointer;
+  transition: transform 0.1s ease;
+  user-select: none;
+}
+
+.wa-reaction-btn:hover {
+  transform: scale(1.3);
+}
+
+.wa-menu-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  width: 100%;
+  border: none;
+  background: none;
+  color: #e9edef;
+  text-align: left;
+  transition: background 0.15s;
+}
+
+.wa-menu-option:hover {
+  background: #182229;
+}
+
+.wa-menu-option.danger {
+  color: #f15c6d;
+}
+
+.wa-menu-option.danger:hover {
+  background: rgba(241, 92, 109, 0.1);
+}
+
+.message-reaction-badge {
+  display: inline-flex;
+  align-items: center;
+  background: #202c33;
+  border: 1px solid rgba(255,255,255,0.06);
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  margin-top: 4px;
+  align-self: flex-start;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+
 

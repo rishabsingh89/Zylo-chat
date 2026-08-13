@@ -14,6 +14,7 @@ import {
   sendFriendRequest,
   getChatPreferences
 } from '../services/friendService';
+import { uploadMedia } from '../services/chatService';
 
 const getInitials = (name = '') =>
   name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2);
@@ -82,21 +83,23 @@ const InlineInput = ({ onSend, disabled, placeholder }) => {
     inputRef.current?.focus();
   };
 
-  const handleFileChange = (e) => {
+  const handleFileChange = async (e) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.type.startsWith('image/')) {
-        const reader = new FileReader();
-        reader.onload = () => {
-          onSend(file.name, {
-            fileUrl: reader.result,
-            fileType: file.type,
-            fileName: file.name,
-          });
-        };
-        reader.readAsDataURL(file);
-      } else {
-        onSend(`📁 Attached file: ${file.name}`);
+      const uploadToastId = toast.loading(`Uploading ${file.name}...`);
+      try {
+        const res = await uploadMedia(file);
+        toast.success(`${file.name} uploaded successfully!`, { id: uploadToastId });
+        
+        onSend(file.name, {
+          media_url: res.media_url,
+          media_type: res.media_type,
+          file_name: res.file_name,
+          file_size: res.file_size
+        });
+      } catch (err) {
+        console.error("File upload failed:", err);
+        toast.error("File upload failed. Please try again.", { id: uploadToastId });
       }
       e.target.value = '';
     }
