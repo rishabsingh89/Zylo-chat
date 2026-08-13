@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
@@ -128,51 +128,24 @@ class ResetPasswordRequest(BaseModel):
     new_password: str
 
 
-@router.post("/forgot-password")
-def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db)):
-    import os
-    trimmed_email = payload.email.strip().lower()
-    user = db.query(User).filter(User.email.ilike(trimmed_email)).first()
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No account found with this email address."
-        )
-
-    # Generate 6-digit OTP code
-    otp = "".join(random.choices(string.digits, k=6))
-    user.reset_otp = otp
-    user.reset_otp_expiry = datetime.utcnow() + timedelta(minutes=10)
-    db.commit()
-
-    # Clear print for developer/logs console
-    print(f"\n[OTP RESET] HEY! The OTP code for {trimmed_email} is: {otp}\n")
-
-    # Try SMTP sending if configured
+def send_otp_email(trimmed_email: str, otp: str, smtp_host: str, smtp_port: str, smtp_user: str, smtp_password: str, smtp_sender: str):
     try:
         import smtplib
         from email.mime.multipart import MIMEMultipart
         from email.mime.text import MIMEText
         from email.utils import formataddr
         
-        smtp_host = os.getenv("SMTP_HOST")
-        smtp_port = os.getenv("SMTP_PORT")
-        smtp_user = os.getenv("SMTP_USER")
-        smtp_password = os.getenv("SMTP_PASSWORD")
-        smtp_sender = os.getenv("SMTP_SENDER") or smtp_user
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = "Zylo Chat Password Reset OTP"
+        if smtp_sender:
+            msg["From"] = formataddr(("Zylo Chat", smtp_sender))
+        else:
+            msg["From"] = "Zylo Chat <noreply@zylochat.com>"
+        msg["To"] = trimmed_email
         
-        if smtp_host and smtp_port:
-            msg = MIMEMultipart("alternative")
-            msg["Subject"] = "Zylo Chat Password Reset OTP"
-            if smtp_sender:
-                msg["From"] = formataddr(("Zylo Chat", smtp_sender))
-            else:
-                msg["From"] = "Zylo Chat <noreply@zylochat.com>"
-            msg["To"] = trimmed_email
-            
-            text_body = f"Your Zylo Chat password reset OTP is: {otp}\n\nExpires in 10 minutes. If you did not request this, please ignore this email."
-            
-            html_body = f"""<!DOCTYPE html>
+        text_body = f"Your Zylo Chat password reset OTP is: {otp}\n\nExpires in 10 minutes. If you did not request this, please ignore this email."
+        
+        html_body = f"""<!DOCTYPE html>
 <html>
 <head>
   <style>
@@ -259,30 +232,70 @@ def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db
 </body>
 </html>"""
 
-            msg.attach(MIMEText(text_body, "plain"))
-            msg.attach(MIMEText(html_body, "html"))
+        msg.attach(MIMEText(text_body, "plain"))
+        msg.attach(MIMEText(html_body, "html"))
+        
+        port = int(smtp_port)
+        if port == 465:
+            server = smtplib.SMTP_SSL(smtp_host, port, timeout=10)
+        else:
+            server = smtplib.SMTP(smtp_host, port, timeout=10)
+            if smtp_host not in ["localhost", "127.0.0.1"]:
+                try:
+                    server.starttls()
+                except Exception as tls_err:
+                    print(f"[Email Reset] STARTTLS failed: {tls_err}")
+        
+        if smtp_user and smtp_password and smtp_host not in ["localhost", "127.0.0.1"]:
+            server.login(smtp_user, smtp_password)
             
-            port = int(smtp_port)
-            if port == 465:
-                server = smtplib.SMTP_SSL(smtp_host, port, timeout=10)
-            else:
-                server = smtplib.SMTP(smtp_host, port, timeout=10)
-                if smtp_host not in ["localhost", "127.0.0.1"]:
-                    try:
-                        server.starttls()
-                    except Exception as tls_err:
-                        print(f"[Email Reset] STARTTLS failed: {tls_err}")
-            
-            if smtp_user and smtp_password and smtp_host not in ["localhost", "127.0.0.1"]:
-                server.login(smtp_user, smtp_password)
-                
-            server.send_message(msg)
-            server.quit()
-            print(f"[Email Reset] Successfully sent password reset email via SMTP to {trimmed_email}")
+        server.send_message(msg)
+        server.quit()
+        print(f"[Email Reset] Successfully sent password reset email via SMTP to {trimmed_email}")
     except Exception as err:
         import traceback
         traceback.print_exc()
         print(f"[Email Reset Error] Failed to send SMTP mail: {err}")
+
+
+@router.post("/forgot-password")
+def forgot_password(payload: ForgotPasswordRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    import os
+    trimmed_email = payload.email.strip().lower()
+    user = db.query(User).filter(User.email.ilike(trimmed_email)).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No account found with this email address."
+        )
+
+    # Generate 6-digit OTP code
+    otp = "".join(random.choices(string.digits, k=6))
+    user.reset_otp = otp
+    user.reset_otp_expiry = datetime.utcnow() + timedelta(minutes=10)
+    db.commit()
+
+    # Clear print for developer/logs console
+    print(f"\n[OTP RESET] HEY! The OTP code for {trimmed_email} is: {otp}\n")
+
+    # Queue SMTP sending as background task
+    smtp_host = os.getenv("SMTP_HOST")
+    smtp_port = os.getenv("SMTP_PORT")
+    smtp_user = os.getenv("SMTP_USER")
+    smtp_password = os.getenv("SMTP_PASSWORD")
+    smtp_sender = os.getenv("SMTP_SENDER") or smtp_user
+    
+    if smtp_host and smtp_port:
+        background_tasks.add_task(
+            send_otp_email,
+            trimmed_email,
+            otp,
+            smtp_host,
+            smtp_port,
+            smtp_user,
+            smtp_password,
+            smtp_sender
+        )
 
     return {"message": "OTP has been generated and printed/sent successfully."}
 
