@@ -148,27 +148,140 @@ def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db
     # Clear print for developer/logs console
     print(f"\n[OTP RESET] HEY! The OTP code for {trimmed_email} is: {otp}\n")
 
-    # Try SMTP sending if configured, or just fallback silently
+    # Try SMTP sending if configured
     try:
         import smtplib
+        from email.mime.multipart import MIMEMultipart
         from email.mime.text import MIMEText
+        from email.utils import formataddr
         
         smtp_host = os.getenv("SMTP_HOST")
         smtp_port = os.getenv("SMTP_PORT")
         smtp_user = os.getenv("SMTP_USER")
         smtp_password = os.getenv("SMTP_PASSWORD")
+        smtp_sender = os.getenv("SMTP_SENDER") or smtp_user
         
-        if smtp_host and smtp_port and smtp_user and smtp_password:
-            msg = MIMEText(f"Your Zylo Chat password reset OTP is: {otp}\nExpires in 10 minutes.")
+        if smtp_host and smtp_port:
+            msg = MIMEMultipart("alternative")
             msg["Subject"] = "Zylo Chat Password Reset OTP"
-            msg["From"] = smtp_user
+            if smtp_sender:
+                msg["From"] = formataddr(("Zylo Chat", smtp_sender))
+            else:
+                msg["From"] = "Zylo Chat <noreply@zylochat.com>"
             msg["To"] = trimmed_email
             
-            with smtplib.SMTP(smtp_host, int(smtp_port)) as server:
-                server.starttls()
+            text_body = f"Your Zylo Chat password reset OTP is: {otp}\n\nExpires in 10 minutes. If you did not request this, please ignore this email."
+            
+            html_body = f"""<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body {{
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f4f6f9;
+      color: #333333;
+      margin: 0;
+      padding: 0;
+    }}
+    .container {{
+      max-width: 600px;
+      margin: 30px auto;
+      background-color: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+      overflow: hidden;
+      border: 1px solid #e1e8ed;
+    }}
+    .header {{
+      background: linear-gradient(135deg, #4f46e5, #06b6d4);
+      padding: 30px 20px;
+      text-align: center;
+      color: #ffffff;
+    }}
+    .header h1 {{
+      margin: 0;
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }}
+    .content {{
+      padding: 40px 30px;
+      line-height: 1.6;
+    }}
+    .otp-container {{
+      background-color: #f3f4f6;
+      border-radius: 8px;
+      padding: 20px;
+      text-align: center;
+      margin: 25px 0;
+      border: 1px dashed #d1d5db;
+    }}
+    .otp-code {{
+      font-size: 36px;
+      font-weight: 800;
+      color: #4f46e5;
+      letter-spacing: 6px;
+      margin: 0;
+    }}
+    .footer {{
+      background-color: #f9fafb;
+      padding: 20px;
+      text-align: center;
+      font-size: 12px;
+      color: #6b7280;
+      border-top: 1px solid #f3f4f6;
+    }}
+    .warning {{
+      font-size: 13px;
+      color: #ef4444;
+      margin-top: 20px;
+    }}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Zylo Chat</h1>
+    </div>
+    <div class="content">
+      <p>Hello,</p>
+      <p>We received a request to reset the password for your Zylo Chat account. Use the 6-digit verification code below to proceed:</p>
+      <div class="otp-container">
+        <h2 class="otp-code">{otp}</h2>
+      </div>
+      <p>This verification code is valid for <strong>10 minutes</strong>. If you did not request a password reset, please ignore this email or secure your account.</p>
+      <p class="warning">Do not share this OTP with anyone for security reasons.</p>
+    </div>
+    <div class="footer">
+      <p>&copy; 2026 Zylo Chat. All rights reserved.</p>
+    </div>
+  </div>
+</body>
+</html>"""
+
+            msg.attach(MIMEText(text_body, "plain"))
+            msg.attach(MIMEText(html_body, "html"))
+            
+            port = int(smtp_port)
+            if port == 465:
+                server = smtplib.SMTP_SSL(smtp_host, port, timeout=10)
+            else:
+                server = smtplib.SMTP(smtp_host, port, timeout=10)
+                if smtp_host not in ["localhost", "127.0.0.1"]:
+                    try:
+                        server.starttls()
+                    except Exception as tls_err:
+                        print(f"[Email Reset] STARTTLS failed: {tls_err}")
+            
+            if smtp_user and smtp_password and smtp_host not in ["localhost", "127.0.0.1"]:
                 server.login(smtp_user, smtp_password)
-                server.send_message(msg)
+                
+            server.send_message(msg)
+            server.quit()
+            print(f"[Email Reset] Successfully sent password reset email via SMTP to {trimmed_email}")
     except Exception as err:
+        import traceback
+        traceback.print_exc()
         print(f"[Email Reset Error] Failed to send SMTP mail: {err}")
 
     return {"message": "OTP has been generated and printed/sent successfully."}
