@@ -6,10 +6,11 @@ import AddFriendModal from '../components/AddFriendModal';
 import { getFriendRequests } from '../services/friendService';
 import useAuth from '../hooks/useAuth';
 import api from '../services/api';
+import { generateKeyPair, savePrivateKeyLocally, loadPrivateKeyLocally } from '../services/cryptoService';
 import toast from 'react-hot-toast';
 
 const ChatPage = () => {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const [selectedUser, setSelectedUser] = useState(null);
   const [activeTab, setActiveTab] = useState('chats'); // 'chats', 'friends', 'archived', 'blocked'
   const [currentFilter, setCurrentFilter] = useState('all'); // 'all', 'unread', 'archived', 'friends', 'blocked'
@@ -86,6 +87,34 @@ const ChatPage = () => {
       ws.close();
     };
   }, [token]);
+
+  // Enforce E2EE key sync on load for pre-existing or out-of-sync users
+  useEffect(() => {
+    const myId = user?.id || user?._id;
+    if (!token || !myId) return;
+
+    const enforceKeys = async () => {
+      try {
+        const localKey = await loadPrivateKeyLocally(myId);
+        // If they don't have a private key locally, or their public key is missing on backend
+        if (!localKey || !user?.public_key) {
+          console.log("E2EE keys missing or out of sync. Generating keypair...");
+          const keypair = await generateKeyPair();
+          await savePrivateKeyLocally(myId, keypair.privateKey);
+
+          // Upload public key to backend
+          const { data } = await api.put('/api/users/public-key', { public_key: keypair.publicKey });
+          if (user) {
+            user.public_key = data.public_key;
+          }
+          console.log("E2EE keypair generated and synced successfully!");
+        }
+      } catch (err) {
+        console.error("Failed to enforce E2EE key generation on startup:", err);
+      }
+    };
+    enforceKeys();
+  }, [token, user]);
 
   return (
     <div className="chat-app-container">
