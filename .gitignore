@@ -5,7 +5,6 @@ node_modules/
 # Security & Secrets
 security/
 **/security/
-*security*
 .env
 *.env
 .env.*
