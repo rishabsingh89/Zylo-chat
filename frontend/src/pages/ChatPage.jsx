@@ -55,6 +55,38 @@ const ChatPage = () => {
     loadPendingCount();
   };
 
+  // Connect a global WebSocket listener to refresh the sidebar in real-time when new messages arrive
+  useEffect(() => {
+    if (!token) return;
+    const getWsUrl = () => {
+      const rawUrl = api.defaults.baseURL || 'http://localhost:8000';
+      const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+      if (rawUrl.startsWith('http')) {
+        return rawUrl.replace(/^http/, 'ws') + `/ws/chat/${encodeURIComponent(token)}`;
+      }
+      return `${wsProtocol}://${window.location.host}/ws/chat/${encodeURIComponent(token)}`;
+    };
+
+    const wsUrl = getWsUrl();
+    const ws = new WebSocket(wsUrl);
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'new_message' || data.type === 'presence') {
+          // Trigger sidebar refresh to fetch updated conversation list/unread count
+          refreshSidebar();
+        }
+      } catch (err) {
+        // Ignored
+      }
+    };
+
+    return () => {
+      ws.close();
+    };
+  }, [token]);
+
   return (
     <div className="chat-app-container">
       {/* Top Header Navigation */}
