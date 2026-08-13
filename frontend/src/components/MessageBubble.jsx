@@ -197,8 +197,16 @@ const MessageBubble = ({ message, isSent, onDelete, onEdit }) => {
             {formatTime(message.createdAt)}
             {message.edited && <span style={{ marginLeft: 4, opacity: 0.7, fontSize: '0.65rem' }}>(edited)</span>}
             {isSent && (
-              <span style={{ marginLeft: 4, opacity: message.optimistic ? 0.5 : 1 }}>
-                {message.optimistic ? '○' : '✓'}
+              <span className={`wa-ticks ${message.status || 'sent'}`} style={{ marginLeft: 4 }}>
+                {message.optimistic ? (
+                  '○'
+                ) : message.status === 'read' ? (
+                  <span style={{ color: '#53bdeb', fontWeight: 'bold' }}>✓✓</span>
+                ) : message.status === 'delivered' ? (
+                  <span style={{ color: 'rgba(233, 237, 239, 0.65)' }}>✓✓</span>
+                ) : (
+                  <span style={{ color: 'rgba(233, 237, 239, 0.65)' }}>✓</span>
+                )}
               </span>
             )}
           </div>

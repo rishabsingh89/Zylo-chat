@@ -25,6 +25,21 @@ class ConnectionManager:
             if user:
                 user.is_online = True
                 db.commit()
+
+            # Find and update pending "sent" messages to "delivered"
+            from app.models.message import Message
+            sent_messages = db.query(Message).filter(Message.receiver_id == user_id, Message.status == "sent").all()
+            if sent_messages:
+                for m in sent_messages:
+                    m.status = "delivered"
+                db.commit()
+                # Notify senders in real-time
+                for m in sent_messages:
+                    await self.send_personal_message({
+                        "type": "message_status",
+                        "message_id": m.id,
+                        "status": "delivered"
+                    }, m.sender_id)
         finally:
             db.close()
 

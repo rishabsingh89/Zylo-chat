@@ -76,7 +76,7 @@ def get_conversations(
     return result
 
 @router.get("/{receiver_or_chat_id}", response_model=List[MessageResponse])
-def get_messages(
+async def get_messages(
     receiver_or_chat_id: str,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -110,6 +110,13 @@ def get_messages(
             for m in unread:
                 m.status = "read"
             db.commit()
+            # Broadcast read status updates to original senders in real-time
+            for m in unread:
+                await manager.send_personal_message({
+                    "type": "message_status",
+                    "message_id": m.id,
+                    "status": "read"
+                }, m.sender_id)
 
     return messages
 
@@ -138,6 +145,9 @@ async def send_message(
             )
 
 
+    is_online = payload.receiver_id in manager.active_connections if payload.receiver_id else False
+    initial_status = "delivered" if is_online else "sent"
+
     new_msg = Message(
         chat_id=payload.chat_id,
         sender_id=current_user.id,
@@ -151,7 +161,7 @@ async def send_message(
         is_forwarded=payload.is_forwarded,
         is_encrypted=payload.is_encrypted,
         iv=payload.iv,
-        status="sent"
+        status=initial_status
     )
     db.add(new_msg)
     db.commit()

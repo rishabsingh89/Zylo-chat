@@ -132,6 +132,13 @@ const useChat = (selectedUser) => {
             (normalized.sender === targetUserId && normalized.receiver === (user?._id || user?.id)) ||
             (normalized.receiver === targetUserId && normalized.sender === (user?._id || user?.id))
           ) {
+            // Auto mark read if we are the recipient of the incoming message in the active chat
+            if (normalized.receiver === (user?._id || user?.id)) {
+              api.put(`/api/messages/status/${normalized._id}`, { status: 'read' })
+                .catch((err) => console.error('Failed to mark message as read:', err));
+              normalized.status = 'read';
+            }
+
             if (normalized.is_encrypted && normalized.iv && sharedKeyRef.current) {
               decryptMessage(normalized.content, normalized.iv, sharedKeyRef.current)
                 .then((plain) => {
