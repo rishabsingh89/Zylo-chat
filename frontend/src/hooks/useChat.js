@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { getMessages, sendMessage as sendMessageApi, deleteMessage as deleteMessageApi, clearChat as clearChatApi, updateMessage as updateMessageApi } from '../services/chatService';
-import { io } from 'socket.io-client';
+import api from '../services/api';
 import useAuth from './useAuth';
 
 const useChat = (selectedUser) => {
@@ -36,19 +36,16 @@ const useChat = (selectedUser) => {
   // Connect native WebSocket for FastAPI backend
   useEffect(() => {
     if (!token) return;
-    const getRawUrl = () => {
-      if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
-      if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
-        return window.location.origin;
+    const getWsUrl = () => {
+      const rawUrl = api.defaults.baseURL || 'http://localhost:8000';
+      const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+      if (rawUrl.startsWith('http')) {
+        return rawUrl.replace(/^http/, 'ws') + `/ws/chat/${encodeURIComponent(token)}`;
       }
-      return 'http://localhost:8000';
+      return `${wsProtocol}://${window.location.host}/ws/chat/${encodeURIComponent(token)}`;
     };
-    const rawUrl = getRawUrl();
-    const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    const wsUrl = rawUrl.startsWith('http') 
-      ? rawUrl.replace(/^http/, 'ws') + `/ws/chat/${encodeURIComponent(token)}`
-      : `${wsProtocol}://${window.location.host}/ws/chat/${encodeURIComponent(token)}`;
 
+    const wsUrl = getWsUrl();
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 

@@ -4,9 +4,12 @@ import Sidebar from '../components/Sidebar';
 import ChatWindow from '../components/ChatWindow';
 import AddFriendModal from '../components/AddFriendModal';
 import { getFriendRequests } from '../services/friendService';
+import useAuth from '../hooks/useAuth';
+import api from '../services/api';
 import toast from 'react-hot-toast';
 
 const ChatPage = () => {
+  const { token } = useAuth();
   const [selectedUser, setSelectedUser] = useState(null);
   const [activeTab, setActiveTab] = useState('chats'); // 'chats', 'friends', 'archived', 'blocked'
   const [currentFilter, setCurrentFilter] = useState('all'); // 'all', 'unread', 'archived', 'friends', 'blocked'
