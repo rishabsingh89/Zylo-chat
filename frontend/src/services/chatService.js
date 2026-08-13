@@ -13,8 +13,9 @@ export const getMessages = async (receiverId) => {
 export const uploadMedia = async (file) => {
   const formData = new FormData();
   formData.append('file', file);
+  // Let Axios / browser set the Content-Type automatically with the correct boundary.
   const { data } = await api.post('/api/messages/upload', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 60000, // 60 seconds timeout for file uploads
   });
   return data;
 };
