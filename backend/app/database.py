@@ -78,6 +78,10 @@ def run_schema_migrations():
                         conn.exec_driver_sql("ALTER TABLE users ADD COLUMN last_seen DATETIME")
                     if "public_key" not in existing_cols:
                         conn.exec_driver_sql("ALTER TABLE users ADD COLUMN public_key VARCHAR")
+                    if "reset_otp" not in existing_cols:
+                        conn.exec_driver_sql("ALTER TABLE users ADD COLUMN reset_otp VARCHAR")
+                    if "reset_otp_expiry" not in existing_cols:
+                        conn.exec_driver_sql("ALTER TABLE users ADD COLUMN reset_otp_expiry DATETIME")
 
                 # Check messages table columns
                 res_msg = conn.exec_driver_sql("PRAGMA table_info(messages)")
@@ -101,6 +105,10 @@ def run_schema_migrations():
                 if existing_cols:
                     if "public_key" not in existing_cols:
                         conn.exec_driver_sql("ALTER TABLE users ADD COLUMN public_key VARCHAR;")
+                    if "reset_otp" not in existing_cols:
+                        conn.exec_driver_sql("ALTER TABLE users ADD COLUMN reset_otp VARCHAR;")
+                    if "reset_otp_expiry" not in existing_cols:
+                        conn.exec_driver_sql("ALTER TABLE users ADD COLUMN reset_otp_expiry TIMESTAMP;")
 
                 # Check messages table columns
                 res_msg = conn.exec_driver_sql(

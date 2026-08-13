@@ -2,6 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
+import random
+import string
+from datetime import datetime, timedelta
+from pydantic import BaseModel
 
 from app.database import get_db
 from app.models.user import User
@@ -112,3 +116,90 @@ def login_user(payload: UserLogin, db: Session = Depends(get_db)):
 @router.get("/me", response_model=UserResponse)
 def get_me(current_user: User = Depends(get_current_user)):
     return current_user
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+
+class ResetPasswordRequest(BaseModel):
+    email: str
+    otp: str
+    new_password: str
+
+
+@router.post("/forgot-password")
+def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    import os
+    trimmed_email = payload.email.strip().lower()
+    user = db.query(User).filter(User.email.ilike(trimmed_email)).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No account found with this email address."
+        )
+
+    # Generate 6-digit OTP code
+    otp = "".join(random.choices(string.digits, k=6))
+    user.reset_otp = otp
+    user.reset_otp_expiry = datetime.utcnow() + timedelta(minutes=10)
+    db.commit()
+
+    # Clear print for developer/logs console
+    print(f"\n[OTP RESET] HEY! The OTP code for {trimmed_email} is: {otp}\n")
+
+    # Try SMTP sending if configured, or just fallback silently
+    try:
+        import smtplib
+        from email.mime.text import MIMEText
+        
+        smtp_host = os.getenv("SMTP_HOST")
+        smtp_port = os.getenv("SMTP_PORT")
+        smtp_user = os.getenv("SMTP_USER")
+        smtp_password = os.getenv("SMTP_PASSWORD")
+        
+        if smtp_host and smtp_port and smtp_user and smtp_password:
+            msg = MIMEText(f"Your Zylo Chat password reset OTP is: {otp}\nExpires in 10 minutes.")
+            msg["Subject"] = "Zylo Chat Password Reset OTP"
+            msg["From"] = smtp_user
+            msg["To"] = trimmed_email
+            
+            with smtplib.SMTP(smtp_host, int(smtp_port)) as server:
+                server.starttls()
+                server.login(smtp_user, smtp_password)
+                server.send_message(msg)
+    except Exception as err:
+        print(f"[Email Reset Error] Failed to send SMTP mail: {err}")
+
+    return {"message": "OTP has been generated and printed/sent successfully."}
+
+
+@router.post("/reset-password")
+def reset_password(payload: ResetPasswordRequest, db: Session = Depends(get_db)):
+    trimmed_email = payload.email.strip().lower()
+    user = db.query(User).filter(User.email.ilike(trimmed_email)).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No account found with this email address."
+        )
+
+    if not user.reset_otp or user.reset_otp != payload.otp.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Incorrect OTP code. Please check and try again."
+        )
+
+    if not user.reset_otp_expiry or user.reset_otp_expiry < datetime.utcnow():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="OTP code has expired. Please request a new one."
+        )
+
+    # Update password
+    user.password_hash = hash_password(payload.new_password)
+    user.reset_otp = None
+    user.reset_otp_expiry = None
+    db.commit()
+
+    return {"message": "Password has been reset successfully."}

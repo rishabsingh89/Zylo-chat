@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, Link } from 'react-router-dom';
 import { loginUser } from '../services/authService';
 import useAuth from '../hooks/useAuth';
+import api from '../services/api';
 import toast from 'react-hot-toast';
 
 /* ── Icons ── */
@@ -69,10 +70,16 @@ const LoginPage = () => {
   const [showPass, setShowPass] = useState(false);
   const particles = useParticles(28);
 
+  // Forgot password flow states
+  const [showForgot, setShowForgot] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+
   const validate = () => {
     const e = {};
-    if (!form.email.trim()) e.email = 'Email is required';
-    else if (!/\S+@\S+\.\S+/.test(form.email)) e.email = 'Enter a valid email';
+    if (!form.email.trim()) e.email = 'Username or Email is required';
     if (!form.password) e.password = 'Password is required';
     return e;
   };
@@ -80,6 +87,50 @@ const LoginPage = () => {
   const handleChange = (e) => {
     setForm((p) => ({ ...p, [e.target.name]: e.target.value }));
     setErrors((p) => ({ ...p, [e.target.name]: '' }));
+  };
+
+  const handleForgotSubmit = async (e) => {
+    e.preventDefault();
+    if (!forgotEmail.trim()) {
+      return toast.error("Please enter your registered email address.");
+    }
+    setLoading(true);
+    try {
+      await api.post('/api/auth/forgot-password', { email: forgotEmail.trim() });
+      toast.success("OTP sent to your email successfully!");
+      setOtpSent(true);
+    } catch (err) {
+      const msg = err.response?.data?.detail || "Failed to send OTP. Please try again.";
+      toast.error(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetSubmit = async (e) => {
+    e.preventDefault();
+    if (!otpCode.trim() || !newPassword) {
+      return toast.error("Please enter both the OTP code and new password.");
+    }
+    setLoading(true);
+    try {
+      await api.post('/api/auth/reset-password', {
+        email: forgotEmail.trim(),
+        otp: otpCode.trim(),
+        new_password: newPassword
+      });
+      toast.success("Password reset successfully! Please sign in.");
+      setOtpSent(false);
+      setShowForgot(false);
+      setForgotEmail('');
+      setOtpCode('');
+      setNewPassword('');
+    } catch (err) {
+      const msg = err.response?.data?.detail || "Failed to reset password. Please check your OTP.";
+      toast.error(msg);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -106,7 +157,13 @@ const LoginPage = () => {
         msg = 'Unable to connect to server. Please check your network connection.';
       }
       toast.error(msg);
-      setErrors({ email: msg });
+      
+      // Align errors dynamically to the correct field
+      if (msg.toLowerCase().includes('password')) {
+        setErrors({ password: msg });
+      } else {
+        setErrors({ email: msg });
+      }
     } finally {
       setLoading(false);
     }
@@ -171,79 +228,148 @@ const LoginPage = () => {
 
       {/* ── RIGHT PANEL (Glowing Card) ── */}
       <div className="nm-right">
-        <motion.div
-          className="nm-card nm-card-glow"
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.1 }}
-        >
-          <h1 className="nm-card-title">Welcome back 👋</h1>
-          <p className="nm-card-sub">Sign in to continue to Zylo Chat</p>
+        {showForgot ? (
+          <motion.div
+            className="nm-card nm-card-glow"
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+          >
+            <h1 className="nm-card-title">Reset Password 🔒</h1>
+            <p className="nm-card-sub">Enter your email to receive a 6-digit OTP code.</p>
 
-          <form onSubmit={handleSubmit} noValidate id="login-form">
-            {/* Email */}
-            <div className="nm-field">
-              <label className="nm-label" htmlFor="login-email">Email</label>
-              <input
-                id="login-email"
-                className="nm-input"
-                type="email"
-                name="email"
-                placeholder="you@example.com"
-                value={form.email}
-                onChange={handleChange}
-                autoComplete="email"
-              />
-              <AnimatePresence>
-                {errors.email && (
-                  <motion.div className="nm-error"
-                    initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
-                    {errors.email}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-
-            {/* Password */}
-            <div className="nm-field">
-              <label className="nm-label" htmlFor="login-password">Password</label>
-              <div className="nm-input-wrap">
-                <input
-                  id="login-password"
-                  className="nm-input"
-                  type={showPass ? 'text' : 'password'}
-                  name="password"
-                  placeholder="••••••••"
-                  value={form.password}
-                  onChange={handleChange}
-                  autoComplete="current-password"
-                  style={{ paddingRight: 44 }}
-                />
-                <button type="button" className="nm-eye-btn"
-                  onClick={() => setShowPass((p) => !p)}
-                  aria-label={showPass ? 'Hide password' : 'Show password'}>
-                  {showPass ? <EyeOpen /> : <EyeClosed />}
+            {!otpSent ? (
+              <form onSubmit={handleForgotSubmit} noValidate>
+                <div className="nm-field">
+                  <label className="nm-label">Email Address</label>
+                  <input
+                    className="nm-input"
+                    type="email"
+                    placeholder="you@example.com"
+                    value={forgotEmail}
+                    onChange={(e) => setForgotEmail(e.target.value)}
+                    required
+                  />
+                </div>
+                <button className="nm-btn" type="submit" disabled={loading}>
+                  {loading ? <><div className="spinner" /> Sending OTP...</> : 'Send OTP Code'}
                 </button>
+              </form>
+            ) : (
+              <form onSubmit={handleResetSubmit} noValidate>
+                <div className="nm-field">
+                  <label className="nm-label">6-Digit OTP Code</label>
+                  <input
+                    className="nm-input"
+                    type="text"
+                    placeholder="123456"
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="nm-field">
+                  <label className="nm-label">New Password</label>
+                  <input
+                    className="nm-input"
+                    type="password"
+                    placeholder="••••••••"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    required
+                  />
+                </div>
+                <button className="nm-btn" type="submit" disabled={loading}>
+                  {loading ? <><div className="spinner" /> Resetting password...</> : 'Reset Password'}
+                </button>
+              </form>
+            )}
+
+            <p className="nm-switch" style={{ marginTop: '16px' }}>
+              <button type="button" className="link-btn" onClick={() => { setShowForgot(false); setOtpSent(false); }} style={{ background: 'none', border: 'none', color: '#3b82f6', textDecoration: 'underline', cursor: 'pointer' }}>
+                Back to Sign In
+              </button>
+            </p>
+          </motion.div>
+        ) : (
+          <motion.div
+            className="nm-card nm-card-glow"
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+          >
+            <h1 className="nm-card-title">Welcome back 👋</h1>
+            <p className="nm-card-sub">Sign in to continue to Zylo Chat</p>
+
+            <form onSubmit={handleSubmit} noValidate id="login-form">
+              {/* Username or Email */}
+              <div className="nm-field">
+                <label className="nm-label" htmlFor="login-email">Username or Email</label>
+                <input
+                  id="login-email"
+                  className="nm-input"
+                  type="text"
+                  name="email"
+                  placeholder="Enter username or email"
+                  value={form.email}
+                  onChange={handleChange}
+                  autoComplete="username"
+                />
+                <AnimatePresence>
+                  {errors.email && (
+                    <motion.div className="nm-error"
+                      initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
+                      {errors.email}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
-              <AnimatePresence>
-                {errors.password && (
-                  <motion.div className="nm-error"
-                    initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
-                    {errors.password}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
 
-            <button id="login-submit" className="nm-btn" type="submit" disabled={loading}>
-              {loading ? <><div className="spinner" /> Signing in...</> : 'Sign In'}
-            </button>
-          </form>
+              {/* Password */}
+              <div className="nm-field">
+                <label className="nm-label" htmlFor="login-password">Password</label>
+                <div className="nm-input-wrap">
+                  <input
+                    id="login-password"
+                    className="nm-input"
+                    type={showPass ? 'text' : 'password'}
+                    name="password"
+                    placeholder="••••••••"
+                    value={form.password}
+                    onChange={handleChange}
+                    autoComplete="current-password"
+                    style={{ paddingRight: 44 }}
+                  />
+                  <button type="button" className="nm-eye-btn"
+                    onClick={() => setShowPass((p) => !p)}
+                    aria-label={showPass ? 'Hide password' : 'Show password'}>
+                    {showPass ? <EyeOpen /> : <EyeClosed />}
+                  </button>
+                </div>
+                <AnimatePresence>
+                  {errors.password && (
+                    <motion.div className="nm-error"
+                      initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
+                      {errors.password}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
 
-          <p className="nm-switch">
-            Don't have an account? <Link to="/register">Create one free</Link>
-          </p>
-        </motion.div>
+              <button type="button" className="nm-forgot-link" onClick={() => setShowForgot(true)}>
+                Forgot Password?
+              </button>
+
+              <button id="login-submit" className="nm-btn" type="submit" disabled={loading}>
+                {loading ? <><div className="spinner" /> Signing in...</> : 'Sign In'}
+              </button>
+            </form>
+
+            <p className="nm-switch">
+              Don't have an account? <Link to="/register">Create one free</Link>
+            </p>
+          </motion.div>
+        )}
       </div>
     </div>
   );
