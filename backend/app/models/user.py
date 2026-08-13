@@ -12,6 +12,7 @@ class User(Base):
     email = Column(String, unique=True, index=True, nullable=False)
     password_hash = Column(String, nullable=False)
     avatar_url = Column(String, nullable=True)
+    public_key = Column(String, nullable=True)
     is_online = Column(Boolean, default=False)
     last_seen = Column(DateTime, default=datetime.utcnow)
     created_at = Column(DateTime, default=datetime.utcnow)

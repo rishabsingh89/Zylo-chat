@@ -57,28 +57,63 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
-def run_sqlite_migrations():
-    """Ensure SQLite tables have all required columns from updated models."""
-    if not str(engine.url).startswith("sqlite"):
-        return
-    try:
-        with engine.begin() as conn:
-            # Check users table columns
-            res = conn.exec_driver_sql("PRAGMA table_info(users)")
-            existing_cols = {row[1] for row in res.fetchall()}
-            if existing_cols:
-                if "name" not in existing_cols:
-                    conn.exec_driver_sql("ALTER TABLE users ADD COLUMN name VARCHAR")
-                if "updated_at" not in existing_cols:
-                    conn.exec_driver_sql("ALTER TABLE users ADD COLUMN updated_at DATETIME")
-                if "avatar_url" not in existing_cols:
-                    conn.exec_driver_sql("ALTER TABLE users ADD COLUMN avatar_url VARCHAR")
-                if "is_online" not in existing_cols:
-                    conn.exec_driver_sql("ALTER TABLE users ADD COLUMN is_online BOOLEAN DEFAULT 0")
-                if "last_seen" not in existing_cols:
-                    conn.exec_driver_sql("ALTER TABLE users ADD COLUMN last_seen DATETIME")
-    except Exception as err:
-        print(f"[Database] Migration warning: {err}")
+def run_schema_migrations():
+    """Ensure database tables have all required columns from updated models (handles both SQLite and PostgreSQL)."""
+    if str(engine.url).startswith("sqlite"):
+        try:
+            with engine.begin() as conn:
+                # Check users table columns
+                res = conn.exec_driver_sql("PRAGMA table_info(users)")
+                existing_cols = {row[1] for row in res.fetchall()}
+                if existing_cols:
+                    if "name" not in existing_cols:
+                        conn.exec_driver_sql("ALTER TABLE users ADD COLUMN name VARCHAR")
+                    if "updated_at" not in existing_cols:
+                        conn.exec_driver_sql("ALTER TABLE users ADD COLUMN updated_at DATETIME")
+                    if "avatar_url" not in existing_cols:
+                        conn.exec_driver_sql("ALTER TABLE users ADD COLUMN avatar_url VARCHAR")
+                    if "is_online" not in existing_cols:
+                        conn.exec_driver_sql("ALTER TABLE users ADD COLUMN is_online BOOLEAN DEFAULT 0")
+                    if "last_seen" not in existing_cols:
+                        conn.exec_driver_sql("ALTER TABLE users ADD COLUMN last_seen DATETIME")
+                    if "public_key" not in existing_cols:
+                        conn.exec_driver_sql("ALTER TABLE users ADD COLUMN public_key VARCHAR")
+
+                # Check messages table columns
+                res_msg = conn.exec_driver_sql("PRAGMA table_info(messages)")
+                existing_msg_cols = {row[1] for row in res_msg.fetchall()}
+                if existing_msg_cols:
+                    if "iv" not in existing_msg_cols:
+                        conn.exec_driver_sql("ALTER TABLE messages ADD COLUMN iv VARCHAR")
+                    if "is_encrypted" not in existing_msg_cols:
+                        conn.exec_driver_sql("ALTER TABLE messages ADD COLUMN is_encrypted BOOLEAN DEFAULT 0")
+        except Exception as err:
+            print(f"[Database] SQLite Migration warning: {err}")
+    else:
+        # PostgreSQL schema migrations
+        try:
+            with engine.begin() as conn:
+                # Check users table columns
+                res = conn.exec_driver_sql(
+                    "SELECT column_name FROM information_schema.columns WHERE table_name = 'users';"
+                )
+                existing_cols = {row[0] for row in res.fetchall()}
+                if existing_cols:
+                    if "public_key" not in existing_cols:
+                        conn.exec_driver_sql("ALTER TABLE users ADD COLUMN public_key VARCHAR;")
+
+                # Check messages table columns
+                res_msg = conn.exec_driver_sql(
+                    "SELECT column_name FROM information_schema.columns WHERE table_name = 'messages';"
+                )
+                existing_msg_cols = {row[0] for row in res_msg.fetchall()}
+                if existing_msg_cols:
+                    if "iv" not in existing_msg_cols:
+                        conn.exec_driver_sql("ALTER TABLE messages ADD COLUMN iv VARCHAR;")
+                    if "is_encrypted" not in existing_msg_cols:
+                        conn.exec_driver_sql("ALTER TABLE messages ADD COLUMN is_encrypted BOOLEAN DEFAULT FALSE;")
+        except Exception as err:
+            print(f"[Database] PostgreSQL Migration warning: {err}")
 
 def get_db():
     db = SessionLocal()

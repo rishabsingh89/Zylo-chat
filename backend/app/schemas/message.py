@@ -12,6 +12,8 @@ class MessageCreate(BaseModel):
     file_size: Optional[int] = None
     reply_to_id: Optional[str] = None
     is_forwarded: bool = False
+    is_encrypted: bool = False
+    iv: Optional[str] = None
 
 class MessageUpdate(BaseModel):
     content: str = Field(..., min_length=1)
@@ -32,6 +34,8 @@ class MessageResponse(BaseModel):
     reply_to_id: Optional[str] = None
     is_forwarded: bool = False
     is_edited: bool = False
+    is_encrypted: bool = False
+    iv: Optional[str] = None
     status: str = "sent"
     created_at: datetime
     updated_at: datetime

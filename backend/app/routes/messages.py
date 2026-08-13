@@ -149,6 +149,8 @@ async def send_message(
         file_size=payload.file_size,
         reply_to_id=payload.reply_to_id,
         is_forwarded=payload.is_forwarded,
+        is_encrypted=payload.is_encrypted,
+        iv=payload.iv,
         status="sent"
     )
     db.add(new_msg)
@@ -171,6 +173,8 @@ async def send_message(
                 "file_size": new_msg.file_size,
                 "reply_to_id": new_msg.reply_to_id,
                 "is_forwarded": new_msg.is_forwarded,
+                "is_encrypted": new_msg.is_encrypted,
+                "iv": new_msg.iv,
                 "status": new_msg.status,
                 "createdAt": new_msg.created_at.isoformat()
             }

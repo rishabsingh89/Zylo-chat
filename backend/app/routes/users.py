@@ -7,7 +7,7 @@ from sqlalchemy import or_
 
 from app.database import get_db
 from app.models.user import User
-from app.schemas.user import UserResponse
+from app.schemas.user import UserResponse, PublicKeyUpdate
 from app.utils.auth import get_current_user
 from app.utils.security import validate_uploaded_file
 
@@ -150,4 +150,15 @@ def get_blocked_users(
     blocked_ids = [b.blocked_id for b in blocks]
     blocked_users = db.query(User).filter(User.id.in_(blocked_ids)).all()
     return [UserResponse.model_validate(u) for u in blocked_users]
+
+@router.put("/public-key", response_model=UserResponse)
+def update_public_key(
+    payload: PublicKeyUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    current_user.public_key = payload.public_key
+    db.commit()
+    db.refresh(current_user)
+    return current_user
 

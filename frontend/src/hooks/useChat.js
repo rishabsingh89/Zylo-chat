@@ -2,6 +2,14 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { getMessages, sendMessage as sendMessageApi, deleteMessage as deleteMessageApi, clearChat as clearChatApi, updateMessage as updateMessageApi } from '../services/chatService';
 import api from '../services/api';
 import useAuth from './useAuth';
+import { 
+  loadPrivateKeyLocally, 
+  importPrivateKey, 
+  importPublicKey, 
+  deriveSharedKey, 
+  encryptMessage, 
+  decryptMessage 
+} from '../services/cryptoService';
 
 const useChat = (selectedUser) => {
   const { token, user } = useAuth();
@@ -13,6 +21,60 @@ const useChat = (selectedUser) => {
 
   const targetUserId = selectedUser?._id || selectedUser?.id;
 
+  const sharedKeyRef = useRef(null);
+
+  // Helper to decrypt a list of messages asynchronously
+  const decryptMessageList = useCallback(async (msgList, key) => {
+    if (!key) return msgList;
+    const decrypted = [];
+    for (const m of msgList) {
+      if (m.is_encrypted && m.iv) {
+        try {
+          const plain = await decryptMessage(m.content, m.iv, key);
+          decrypted.push({ ...m, content: plain });
+        } catch (err) {
+          console.error("Failed to decrypt message:", err);
+          decrypted.push({ ...m, content: "🔒 [Decryption failed]" });
+        }
+      } else {
+        decrypted.push(m);
+      }
+    }
+    return decrypted;
+  }, []);
+
+  // Derive shared key whenever selectedUser or targetUserId changes
+  useEffect(() => {
+    sharedKeyRef.current = null;
+    const deriveKeyAsync = async () => {
+      const myId = user?.id || user?._id;
+      const otherPublicKeyBase64 = selectedUser?.public_key;
+      if (!myId || !otherPublicKeyBase64 || !targetUserId) return;
+
+      try {
+        const myPrivateKeyBase64 = await loadPrivateKeyLocally(myId);
+        if (!myPrivateKeyBase64) return;
+
+        const myPrivateKeyObj = await importPrivateKey(myPrivateKeyBase64);
+        const otherPublicKeyObj = await importPublicKey(otherPublicKeyBase64);
+        
+        sharedKeyRef.current = await deriveSharedKey(myPrivateKeyObj, otherPublicKeyObj);
+        console.log("Derived E2EE shared secret key successfully!");
+
+        // Decrypt already loaded messages
+        setMessages((prev) => {
+          decryptMessageList(prev, sharedKeyRef.current).then((decryptedList) => {
+            setMessages(decryptedList);
+          });
+          return prev;
+        });
+      } catch (err) {
+        console.error("Failed to derive E2EE shared secret:", err);
+      }
+    };
+    deriveKeyAsync();
+  }, [targetUserId, selectedUser?.public_key, user, decryptMessageList]);
+
   // Fetch messages from backend database whenever selectedUser changes
   useEffect(() => {
     if (!targetUserId) {
@@ -21,8 +83,13 @@ const useChat = (selectedUser) => {
     }
     setLoading(true);
     getMessages(targetUserId)
-      .then((msgs) => {
-        setMessages(msgs || []);
+      .then(async (msgs) => {
+        if (sharedKeyRef.current) {
+          const decrypted = await decryptMessageList(msgs, sharedKeyRef.current);
+          setMessages(decrypted);
+        } else {
+          setMessages(msgs || []);
+        }
       })
       .catch((err) => {
         console.error('Failed to load messages from backend:', err);
@@ -31,7 +98,7 @@ const useChat = (selectedUser) => {
       .finally(() => {
         setLoading(false);
       });
-  }, [targetUserId]);
+  }, [targetUserId, decryptMessageList]);
 
   // Connect native WebSocket for FastAPI backend
   useEffect(() => {
@@ -65,10 +132,29 @@ const useChat = (selectedUser) => {
             (normalized.sender === targetUserId && normalized.receiver === (user?._id || user?.id)) ||
             (normalized.receiver === targetUserId && normalized.sender === (user?._id || user?.id))
           ) {
-            setMessages((prev) => {
-              if (prev.some((m) => m._id === normalized._id)) return prev;
-              return [...prev, normalized];
-            });
+            if (normalized.is_encrypted && normalized.iv && sharedKeyRef.current) {
+              decryptMessage(normalized.content, normalized.iv, sharedKeyRef.current)
+                .then((plain) => {
+                  const decryptedMsg = { ...normalized, content: plain };
+                  setMessages((prev) => {
+                    if (prev.some((m) => m._id === decryptedMsg._id)) return prev;
+                    return [...prev, decryptedMsg];
+                  });
+                })
+                .catch((err) => {
+                  console.error("Failed to decrypt incoming WS message:", err);
+                  const failMsg = { ...normalized, content: "🔒 [Decryption failed]" };
+                  setMessages((prev) => {
+                    if (prev.some((m) => m._id === failMsg._id)) return prev;
+                    return [...prev, failMsg];
+                  });
+                });
+            } else {
+              setMessages((prev) => {
+                if (prev.some((m) => m._id === normalized._id)) return prev;
+                return [...prev, normalized];
+              });
+            }
           }
         } else if (data.type === 'typing_start') {
           if (data.sender_id === targetUserId) setIsTyping(true);
@@ -107,12 +193,28 @@ const useChat = (selectedUser) => {
       };
       setMessages((prev) => [...prev, optimistic]);
       try {
-        const saved = await sendMessageApi({
-          receiverId: otherId,
-          content,
-          fileData,
-        });
-        setMessages((prev) => prev.map((m) => (m._id === optimistic._id ? saved : m)));
+        let saved;
+        if (sharedKeyRef.current && content.trim()) {
+          const encrypted = await encryptMessage(content, sharedKeyRef.current);
+          saved = await sendMessageApi({
+            receiverId: otherId,
+            content: encrypted.ciphertext,
+            iv: encrypted.iv,
+            is_encrypted: true,
+            fileData,
+          });
+          // Update local state with the decrypted message content so it renders in plaintext for the sender
+          const decryptedSaved = { ...saved, content, is_encrypted: true, iv: encrypted.iv };
+          setMessages((prev) => prev.map((m) => (m._id === optimistic._id ? decryptedSaved : m)));
+        } else {
+          saved = await sendMessageApi({
+            receiverId: otherId,
+            content,
+            is_encrypted: false,
+            fileData,
+          });
+          setMessages((prev) => prev.map((m) => (m._id === optimistic._id ? saved : m)));
+        }
       } catch (err) {
         setMessages((prev) => prev.filter((m) => m._id !== optimistic._id));
         throw err;

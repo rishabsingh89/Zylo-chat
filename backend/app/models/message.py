@@ -20,6 +20,8 @@ class Message(Base):
     reply_to_id = Column(String, ForeignKey("messages.id", ondelete="SET NULL"), nullable=True)
     is_forwarded = Column(Boolean, default=False)
     is_edited = Column(Boolean, default=False)
+    is_encrypted = Column(Boolean, default=False)
+    iv = Column(String, nullable=True)
 
     status = Column(String, default="sent")      # 'sent', 'delivered', 'read'
     created_at = Column(DateTime, default=datetime.utcnow)

@@ -19,10 +19,12 @@ export const uploadMedia = async (file) => {
   return data;
 };
 
-export const sendMessage = async ({ receiverId, content, fileData }) => {
+export const sendMessage = async ({ receiverId, content, fileData, iv, is_encrypted }) => {
   const { data } = await api.post('/api/messages/send', {
     receiver_id: receiverId,
     content,
+    iv,
+    is_encrypted,
     ...(fileData || {}),
   });
   return {

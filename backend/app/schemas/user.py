@@ -18,6 +18,10 @@ class UserUpdate(BaseModel):
     username: Optional[str] = None
     avatar_url: Optional[str] = None
 
+class PublicKeyUpdate(BaseModel):
+    public_key: str
+
+
 class UserResponse(BaseModel):
     id: str
     name: Optional[str] = None
@@ -25,6 +29,7 @@ class UserResponse(BaseModel):
     email: str
     avatar_url: Optional[str] = None
     profile_picture: Optional[str] = None
+    public_key: Optional[str] = None
     is_online: bool = False
     last_seen: Optional[datetime] = None
     created_at: datetime
