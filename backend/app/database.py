@@ -11,9 +11,6 @@ default_sqlite_path = os.path.join(BASE_DIR, "zylochat.db")
 
 DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
 
-# FORCE override for Vercel deployment to prevent IPv6 crash and read-only fallback crash
-DATABASE_URL = "postgresql://postgres.rnrggviwgoikwtdymkjd:Rishab%40%23123@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres?sslmode=require"
-
 # If DATABASE_URL is not set or is a relative sqlite path, use absolute path
 if not DATABASE_URL or DATABASE_URL.startswith("sqlite:///./"):
     DATABASE_URL = f"sqlite:///{default_sqlite_path}"
@@ -30,7 +27,15 @@ try:
     if DATABASE_URL.startswith("sqlite"):
         engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False, "timeout": 15}, pool_pre_ping=True)
     else:
-        engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+        # Standard configuration for connection pooling with cloud/pooler DBs to prevent stale connection errors
+        engine = create_engine(
+            DATABASE_URL, 
+            pool_pre_ping=True,
+            pool_recycle=300,
+            pool_size=10,
+            max_overflow=20,
+            pool_timeout=30
+        )
         # Test connection
         with engine.connect() as conn:
             pass

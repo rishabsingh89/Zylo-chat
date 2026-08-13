@@ -17,23 +17,23 @@ def register_user(payload: UserRegister, db: Session = Depends(get_db)):
     trimmed_username = payload.username.strip()
     trimmed_name = (payload.name or "").strip() or trimmed_username
 
-    # Check duplicate email (case-insensitive)
-    existing_email = db.query(User).filter(func.lower(User.email) == trimmed_email).first()
-    if existing_email:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered"
-        )
-
-    # Check duplicate username
-    existing_user = db.query(User).filter(func.lower(User.username) == trimmed_username.lower()).first()
-    if existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Username already taken"
-        )
-
     try:
+        # Check duplicate email (case-insensitive)
+        existing_email = db.query(User).filter(func.lower(User.email) == trimmed_email).first()
+        if existing_email:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already registered"
+            )
+
+        # Check duplicate username
+        existing_user = db.query(User).filter(func.lower(User.username) == trimmed_username.lower()).first()
+        if existing_user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Username already taken"
+            )
+
         user = User(
             name=trimmed_name,
             username=trimmed_username,
@@ -44,6 +44,9 @@ def register_user(payload: UserRegister, db: Session = Depends(get_db)):
         db.add(user)
         db.commit()
         db.refresh(user)
+    except HTTPException:
+        # Re-raise standard HTTPExceptions (like duplicate conflicts) directly
+        raise
     except IntegrityError as ie:
         db.rollback()
         err_str = str(ie).lower()
@@ -55,6 +58,8 @@ def register_user(payload: UserRegister, db: Session = Depends(get_db)):
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username or Email already registered")
     except Exception as e:
         db.rollback()
+        import traceback
+        traceback.print_exc()
         print(f"[ERROR] Registration exception: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
